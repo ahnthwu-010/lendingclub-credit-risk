@@ -1,8 +1,11 @@
+.gitignore cuối cùng:
+
 data/lendingclub_clean.csv
 data/causal_features.csv
 data/causal_outcome.csv
 data/causal_treatment.csv
 data/cox_default_model.pkl
+Untitled.ipynb
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
