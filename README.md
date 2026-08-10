@@ -1,45 +1,45 @@
 # LendingClub Credit Risk — Survival, Causal & Policy Optimization
 
-Phân tích rủi ro tín dụng trên **2,250,076 khoản vay** từ LendingClub (2007–2018), kết hợp Competing Risks Survival Analysis, Predictive Modeling và Causal Inference để trả lời câu hỏi kinh doanh: **chính sách xác minh thu nhập/nguồn thu (verification) hiện tại có đang lãng phí tiền không, và nên áp dụng chọn lọc thế nào để tối ưu chi phí?**
+Credit risk analysis on **2,250,076 loans** from LendingClub (2007–2018), combining Competing Risks Survival Analysis, Predictive Modeling, and Causal Inference to answer a business question: **is the current income/source verification policy wasting money, and how should it be applied selectively to optimize cost?**
 
-**Dashboard trực quan:** [(https://lendingclub-credit-risk-kkujezq9pbydbufk9frqbw.streamlit.app/)]
-
----
-
-## 1. Bài toán kinh doanh
-
-LendingClub cấp khoản vay dựa trên hồ sơ tự khai, với 3 mức xác minh: `Verified`, `Source Verified`, `Not Verified`. Xác minh tốn chi phí vận hành ($20/khoản vay, giả định trong bài) nhưng lý thuyết sẽ giảm rủi ro vỡ nợ. Phân tích này kiểm chứng bằng dữ liệu thật: **xác minh có thực sự giảm rủi ro không, hay chỉ là phản ứng với rủi ro đã cao sẵn (reverse causation)?**
-
-3 tầng phân tích liên kết:
-1. **Survival Analysis** — khoản vay "sống" bao lâu trước khi vỡ nợ hoặc trả hết sớm (Competing Risks)
-2. **Predictive Modeling** — dự đoán xác suất vỡ nợ
-3. **Causal Inference (X-learner)** — tách bạch tác động thật của xác minh khỏi tương quan → dùng tối ưu chính sách
+**Live Dashboard:** [https://lendingclub-credit-risk-kkujezq9pbydbufk9frqbw.streamlit.app/](https://lendingclub-credit-risk-kkujezq9pbydbufk9frqbw.streamlit.app/)
 
 ---
 
-## 2. Dữ liệu
+## 1. Business Problem
 
-- Nguồn: [LendingClub Loan Data (Kaggle)](https://www.kaggle.com/datasets/wordsforthewise/lending-club) — `accepted_2007_to_2018Q4.csv.gz` (392.6MB, 151 cột)
-- Sau làm sạch: **2,250,076 khoản vay** (loại 10,592 dòng lỗi ngày tháng, 0.47%)
-- Phân bố outcome: Fully Paid 1,068,731 · Charged Off 268,880 · Censored (đang vay) 912,465
+LendingClub issues loans based on self-reported credit profiles, with 3 verification levels: `Verified`, `Source Verified`, `Not Verified`. Verification costs operational money (assumed $20/loan in this analysis) but is theoretically expected to reduce default risk. This analysis tests that with real data: **does verification actually reduce risk, or is it merely a reaction to already-elevated risk (reverse causation)?**
 
-| event_type | Ý nghĩa |
+Three linked layers of analysis:
+1. **Survival Analysis** — how long a loan "survives" before default or early payoff (Competing Risks)
+2. **Predictive Modeling** — predicting default probability
+3. **Causal Inference (X-learner)** — isolating the true causal effect of verification from mere correlation → used to optimize policy
+
+---
+
+## 2. Data
+
+- Source: [LendingClub Loan Data (Kaggle)](https://www.kaggle.com/datasets/wordsforthewise/lending-club) — `accepted_2007_to_2018Q4.csv.gz` (392.6MB, 151 columns)
+- After cleaning: **2,250,076 loans** (10,592 rows dropped due to date-integrity errors, 0.47%)
+- Outcome distribution: Fully Paid 1,068,731 · Charged Off 268,880 · Censored (still active) 912,465
+
+| event_type | Meaning |
 |---|---|
 | 0 | Censored — Current/Late/Grace Period |
-| 1 | Charged Off (vỡ nợ) — rủi ro chính |
-| 2 | Fully Paid — rủi ro cạnh tranh |
+| 1 | Charged Off (default) — primary risk of interest |
+| 2 | Fully Paid — competing risk |
 
 ---
 
-## 3. Kết quả chính — Business Insights
+## 3. Key Findings — Business Insights
 
-### 3.1 Ước lượng risk bằng phương pháp sai làm bóp méo con số 40%
+### 3.1 Using the wrong method distorts the risk estimate by nearly 40%
 
-Dùng Kaplan-Meier thông thường (coi Fully Paid là censored — sai về mặt lý thuyết) cho ra xác suất vỡ nợ tại tháng 36 là **20.88%**. Dùng đúng Aalen-Johansen (Competing Risks) chỉ ra con số thật là **15.48%** — lệch **5.40 điểm %**, tức phương pháp sai làm phóng đại rủi ro gần **35%** so với thực tế. Đây là bằng chứng cụ thể tại sao chọn đúng phương pháp thống kê quan trọng hơn "chạy được model".
+A standard Kaplan-Meier estimate (treating Fully Paid as censored — theoretically incorrect) puts default probability at month 36 at **20.88%**. The correct Aalen-Johansen (Competing Risks) estimate shows the real figure is **15.48%** — a gap of **5.40 percentage points**, meaning the wrong method overstates risk by nearly **35%**. This is concrete evidence of why choosing the correct statistical method matters more than simply "getting a model to run."
 
-### 3.2 Rủi ro vỡ nợ tăng dốc theo Grade — nhưng không tuyến tính
+### 3.2 Default risk rises steeply with Grade — but non-linearly
 
-| Grade | Rủi ro vỡ nợ (36 tháng) | Số lượng |
+| Grade | Default Risk (36 months) | Count |
 |---|---|---|
 | A | 5.02% | 431,473 |
 | B | 10.63% | 660,649 |
@@ -49,49 +49,49 @@ Dùng Kaplan-Meier thông thường (coi Fully Paid là censored — sai về m�
 | F | 36.84% | 41,530 |
 | G | 41.54% | 12,035 |
 
-Grade là yếu tố phân tách rủi ro mạnh nhất trong toàn bộ pipeline (được Cox PH xác nhận: HR Grade G = 5.54 so với Grade A, p<0.005).
+Grade is the strongest risk-separating factor in the entire pipeline (confirmed by Cox PH: HR Grade G = 5.54 vs. Grade A, p<0.005).
 
-### 3.3 Phát hiện quan trọng nhất: Verification tương quan với rủi ro CAO HƠN, không thấp hơn
+### 3.3 Most important finding: Verification correlates with HIGHER risk, not lower
 
-- Cox PH (Concordance 0.6823): `verification_status_Verified` có HR=1.20, `Source Verified` HR=1.16 — cả hai đều **tăng** hazard vỡ nợ (p<0.005)
-- So sánh thô (chưa điều chỉnh): nhóm được xác minh có tỷ lệ default **22.39%**, nhóm không xác minh chỉ **14.82%** — chênh lệch **+7.57 điểm %** theo hướng "xác minh tệ hơn"
+- Cox PH (Concordance 0.6823): `verification_status_Verified` has HR=1.20, `Source Verified` HR=1.16 — both **increase** default hazard (p<0.005)
+- Raw comparison (unadjusted): the verified group has a **22.39%** default rate vs. **14.82%** for the unverified group — a **+7.57 percentage point** gap in the direction of "verification is worse"
 
-→ Đây **không phải** bằng chứng xác minh gây hại — mà là dấu hiệu kinh điển của **reverse causation**: LendingClub có xu hướng yêu cầu xác minh nhiều hơn với khoản vay *đã* có dấu hiệu rủi ro cao (thu nhập cao bất thường, hồ sơ mập mờ...), không phải verification tạo ra rủi ro. Đây chính là lý do bắt buộc phải dùng Causal Inference thay vì đọc trực tiếp số liệu thô.
+→ This is **not** evidence that verification causes harm — it is a textbook sign of **reverse causation**: LendingClub tends to require verification more often for loans that *already* show risk signals (unusually high reported income, ambiguous profiles, etc.), not the other way around. This is precisely why Causal Inference is required instead of reading raw numbers at face value.
 
-### 3.4 Causal Inference (X-learner): tách nhân quả thật khỏi tương quan
+### 3.4 Causal Inference (X-learner): separating true causation from correlation
 
-- Propensity overlap chấp nhận được (treatment mean 0.7255 vs control 0.6298, range chồng lấn tốt) → đủ điều kiện ước lượng CATE tin cậy
-- **ATE toàn dataset: -1.45 điểm %** (âm = xác minh không giúp giảm rủi ro trên trung bình toàn bộ, ngược với kỳ vọng ban đầu) — sau khi đã điều chỉnh confounding, hiệu ứng nhân quả thật **nhỏ hơn nhiều** so với chênh lệch thô +7.57 điểm % → phần lớn chênh lệch thô là do reverse causation, không phải do xác minh gây hại
-- Chỉ **18.44%** khoản vay có CATE dương (xác minh thực sự giúp giảm rủi ro cho nhóm này)
+- Propensity overlap is acceptable (treatment mean 0.7255 vs. control 0.6298, good overlapping range) → sufficient to estimate reliable CATE
+- **ATE across the full dataset: -1.45 percentage points** (negative = verification does not reduce risk on average, contrary to initial expectation) — after adjusting for confounding, the true causal effect is **much smaller** than the raw +7.57 point gap → most of the raw difference is driven by reverse causation, not by verification causing harm
+- Only **18.44%** of loans have a positive CATE (verification genuinely helps reduce risk for this subgroup)
 
-**CATE trung bình theo Grade — insight cốt lõi cho chính sách:**
+**Average CATE by Grade — the core insight for policy:**
 
-| Grade | CATE trung bình | Diễn giải |
+| Grade | Average CATE | Interpretation |
 |---|---|---|
-| A | -0.46% | Xác minh gần như không có tác dụng |
-| B | -0.93% | Không có tác dụng |
-| C | -2.05% | Không có tác dụng |
-| D | -2.66% | Không có tác dụng |
-| E | -1.45% | Không có tác dụng |
-| F | -1.30% | Không có tác dụng |
-| **G** | **+2.27%** | **Xác minh thực sự giúp giảm rủi ro** |
+| A | -0.46% | Verification has essentially no effect |
+| B | -0.93% | No effect |
+| C | -2.05% | No effect |
+| D | -2.66% | No effect |
+| E | -1.45% | No effect |
+| F | -1.30% | No effect |
+| **G** | **+2.27%** | **Verification genuinely reduces risk** |
 
-→ Xác minh chỉ có tác dụng nhân quả thật ở nhóm rủi ro cao nhất (Grade G). Với Grade A-F, xác minh đại trà là **lãng phí chi phí vận hành mà không cải thiện rủi ro**.
+→ Verification only has a real causal effect for the highest-risk group (Grade G). For Grades A-F, blanket verification is **wasted operational cost with no risk improvement**.
 
-**CATE theo mức DTI (Debt-to-Income) — kiểm tra thêm yếu tố phân hóa:**
+**CATE by DTI (Debt-to-Income) quartile — checking for another segmentation factor:**
 
-| DTI Quartile | CATE trung bình |
+| DTI Quartile | Average CATE |
 |---|---|
-| Q1 (thấp nhất) | -1.37% |
+| Q1 (lowest) | -1.37% |
 | Q2 | -1.35% |
 | Q3 | -1.42% |
-| Q4 (cao nhất) | -1.65% |
+| Q4 (highest) | -1.65% |
 
-Chênh lệch giữa các quartile rất nhỏ (~0.3 điểm %) — DTI **không phải yếu tố phân hóa** hiệu quả xác minh, khác hẳn Grade (chênh từ -2.66% đến +2.27%). Kết luận vận hành: chính sách chọn lọc chỉ cần dựa vào Grade, không cần thêm điều kiện DTI, giúp rule đơn giản hơn khi triển khai thực tế.
+The spread across quartiles is very small (~0.3 percentage points) — DTI is **not an effective segmentation factor** for verification, unlike Grade (which spans -2.66% to +2.27%). Operational takeaway: a selective policy only needs to key off Grade, no need for an additional DTI condition, which keeps the rule simpler to implement.
 
-### 3.5 LGD (Loss Given Default) — tương đối đồng đều, Grade G nặng nhất
+### 3.5 LGD (Loss Given Default) — fairly consistent, Grade G is heaviest
 
-| Grade | LGD trung bình |
+| Grade | Average LGD |
 |---|---|
 | A | 40.35% |
 | B | 39.58% |
@@ -101,18 +101,18 @@ Chênh lệch giữa các quartile rất nhỏ (~0.3 điểm %) — DTI **không
 | F | 40.48% |
 | **G** | **43.46%** |
 
-### 3.6 Kết luận tối ưu chính sách — con số tài chính cụ thể
+### 3.6 Policy optimization conclusion — concrete financial numbers
 
-Trên mẫu 300,000 khoản vay:
+On a sample of 300,000 loans:
 
-| Chính sách | Chi phí | Net Value |
+| Policy | Cost | Net Value |
 |---|---|---|
-| Xác minh **đại trà** (hiện tại) | $6,000,000 | **-$20,044,319** (lỗ ròng) |
-| Xác minh **chọn lọc** (chỉ khi Expected Value > 0) | $917,640 (**giảm 84.7%**) | **+$9,384,462** |
+| **Blanket** verification (current) | $6,000,000 | **-$20,044,319** (net loss) |
+| **Selective** verification (only when Expected Value > 0) | $917,640 (**84.7% reduction**) | **+$9,384,462** |
 
-**Cải thiện: +$29,428,781** trên mẫu 300K khoản vay — chỉ **15.29%** khoản vay (45,882 khoản) thực sự đáng xác minh, tập trung mạnh ở Grade rủi ro cao:
+**Improvement: +$29,428,781** on the 300K-loan sample — only **15.29%** of loans (45,882 loans) are genuinely worth verifying, concentrated heavily in the higher-risk grades:
 
-| Grade | % khoản vay đáng xác minh |
+| Grade | % of loans worth verifying |
 |---|---|
 | G | 61.4% |
 | F | 33.5% |
@@ -122,9 +122,9 @@ Trên mẫu 300,000 khoản vay:
 | B | 13.4% |
 | C | 12.5% |
 
-**Sensitivity Analysis** — kết luận vẫn đúng ngay cả khi giảm mạnh độ tin tưởng vào CATE:
+**Sensitivity Analysis** — the conclusion holds even when confidence in the CATE estimate is sharply discounted:
 
-| Mức tin tưởng CATE | Số khoản đáng verify | % tổng | Net Value |
+| CATE Confidence Level | Loans Worth Verifying | % of Total | Net Value |
 |---|---|---|---|
 | 100% | 45,882 | 15.3% | $9,384,462 |
 | 75% | 43,881 | 14.6% | $6,814,006 |
@@ -132,58 +132,72 @@ Trên mẫu 300,000 khoản vay:
 | 25% | 32,573 | 10.9% | $1,766,499 |
 | 10% | 17,727 | 5.9% | $416,484 |
 
-Ngay cả khi chỉ tin **10%** vào ước lượng CATE, chính sách chọn lọc vẫn dương — kết luận **rất bền vững**, không phải kết quả may rủi của model.
+Even trusting the CATE estimate at only **10%**, the selective policy still nets positive — this conclusion is **highly robust**, not a fluke of the model.
 
-**Kịch bản triển khai đơn giản nhất (dễ giải thích cho non-technical):** chỉ xác minh Grade F & G — 3,662 khoản vay, chi phí $73,240, net value **+$1,463,976**. Không cần model CATE phức tạp, chỉ cần 1 rule đơn giản theo Grade vẫn có lời.
+**Simplest implementation scenario (easiest to explain to non-technical stakeholders):** verify only Grade F & G loans — 3,662 loans, $73,240 in cost, net value **+$1,463,976**. No CATE model required — a single simple Grade-based rule is already profitable.
 
-### 3.7 Giới hạn thực tế của model dự đoán — không nên tự động hóa hoàn toàn
+### 3.7 Real limitations of the predictive model — should not be fully automated
 
-Model XGBoost bắt được **67% khoản vay sẽ vỡ nợ thật** (recall) nhưng chỉ **32% khoản bị gắn cờ rủi ro là đúng** (precision) — cứ 3 khoản vay bị model đánh dấu rủi ro cao, chỉ 1 khoản thật sự vỡ nợ.
+The XGBoost model catches **67% of loans that actually default** (recall) but is only **32% accurate on loans it flags as risky** (precision) — for every 3 loans flagged as high-risk, only 1 actually defaults.
 
-**Ý nghĩa vận hành:** không nên dùng model này để **tự động từ chối** khoản vay — sẽ từ chối oan rất nhiều khách hàng tốt (false positive cao). Nên dùng như **lớp chấm điểm ưu tiên** để đội thẩm định xem xét thủ công những khoản có điểm rủi ro cao, kết hợp với rule chọn lọc theo Grade ở mục 3.6 để quyết định có xác minh hay không.
+**Operational implication:** this model should **not** be used to **automatically reject** loans — it would wrongly reject a large number of good customers (high false-positive rate). It should instead serve as a **triage/prioritization layer**, surfacing high-risk-scored loans for manual underwriter review, combined with the Grade-based selective rule from section 3.6 to decide on verification.
 
-### Khuyến nghị kinh doanh
+### 3.8 Other notable underwriting factors (from Cox PH coefficients)
 
-**Chuyển từ xác minh đại trà sang xác minh chọn lọc, ưu tiên Grade F/G.** Chính sách hiện tại (xác minh gần 70% khoản vay) đang lỗ ròng ~$20M/300K khoản vay vì áp dụng tràn lan cho cả nhóm rủi ro thấp (A-C) — nơi xác minh không có tác dụng nhân quả thật. Chỉ cần giới hạn xác minh vào Grade F-G (đơn giản nhất) hoặc dùng model CATE đầy đủ (tối ưu nhất, $9.4M net value) đều mang lại cải thiện tài chính lớn mà không cần thêm chi phí công nghệ đáng kể. Model dự đoán vỡ nợ nên đóng vai trò hỗ trợ ưu tiên xem xét, không thay thế quyết định thủ công do precision còn thấp (32%).
+Beyond Grade, several other variables show meaningful correlational-causal effects on default risk and repayment speed, useful for refining underwriting/pricing policy:
+
+| Variable | Hazard Ratio (Charged Off) | Business Meaning |
+|---|---|---|
+| `home_ownership_MORTGAGE` | 0.92 (lower risk, p<0.005) | Borrowers with a mortgage show more financial stability — could be considered for preferential rates |
+| `application_type_Joint App` | 0.78 (substantially lower risk, p<0.005) | Joint applications (2 co-borrowers) are notably safer — worth encouraging Joint applications where eligible |
+| `purpose_small_business` | 1.19 (higher risk, p<0.005) | Small-business loans carry clearly elevated risk — consider distinct rate/terms for this segment |
+| `emp_length_Missing` | 1.15 (higher risk, p<0.005) | A missing employment-length field is itself a risk signal — consider requiring this info before approval |
+
+**On early payoff speed (`Fully Paid` model):** `term_60_months` has HR=0.32 (very low) — 60-month loans are **far less likely to be paid off early** than 36-month loans. For LendingClub, this is good news for interest cash flow — longer-term loans generate a more stable, predictable interest income stream with lower prepayment risk.
+
+### Business Recommendation
+
+**Shift from blanket verification to selective verification, prioritizing Grades F/G.** The current policy (verifying nearly 70% of loans) is running a net loss of ~$20M per 300K loans because it applies verification indiscriminately to lower-risk grades (A-C), where verification has no real causal effect. Simply restricting verification to Grade F-G (simplest option) or deploying the full CATE model (optimal option, $9.4M net value) both deliver significant financial improvement without meaningful additional technology cost. The default-prediction model should serve as a prioritization aid, not a replacement for manual decisions, given its still-low precision (32%).
 
 ---
 
-## 4. Phương pháp kỹ thuật
+## 4. Technical Methodology
 
-- **Competing Risks**: Kaplan-Meier (baseline sai) vs Aalen-Johansen CIF (đúng), Cause-Specific Cox PH cho 2 outcome (loại `int_rate` do đa cộng tuyến với `grade`)
-- **Predictive**: XGBoost trên 1,337,611 khoản vay "mature" (default rate 20.10%), AUC 0.7166, PR-AUC 0.3877; feature quan trọng nhất: `int_rate` (23.8%), `term_60_months` (8.8%), `grade_B` (6.5%)
-- **Causal**: Treatment = `verification_status != 'Not Verified'` (69.79% khoản vay), X-learner (2 outcome model + 2 tau model theo propensity), kiểm tra overlap trước khi ước lượng
-- **Optimization**: LGD tính từ dữ liệu Charged Off thật, Expected Value = CATE × Potential Loss − Chi phí xác minh ($20/khoản)
+- **Competing Risks**: Kaplan-Meier (incorrect baseline) vs. Aalen-Johansen CIF (correct), Cause-Specific Cox PH for both outcomes (`int_rate` dropped due to multicollinearity with `grade`)
+- **Predictive**: XGBoost trained on 1,337,611 "mature" loans (20.10% default rate), AUC 0.7166, PR-AUC 0.3877; top features: `int_rate` (23.8%), `term_60_months` (8.8%), `grade_B` (6.5%)
+- **Causal**: Treatment = `verification_status != 'Not Verified'` (69.79% of loans), X-learner (2 outcome models + 2 tau models weighted by propensity), overlap checked before estimation
+- **Optimization**: LGD computed from real Charged-Off loan data, Expected Value = CATE × Potential Loss − Verification Cost ($20/loan)
 
 ---
 
-## 5. Cấu trúc project
+## 5. Project Structure
 
-├── 01_data_prep_survival.ipynb # Load, clean, Competing Risks, Cox PH
-├── 02_predictive_causal.ipynb # XGBoost, X-learner CATE, Heterogeneity
-├── 03_optimization.ipynb # LGD, Policy Optimization, Sensitivity
+```text
+├── 01_data_prep_survival.ipynb      # Load, clean, Competing Risks, Cox PH
+├── 02_predictive_causal.ipynb       # XGBoost, X-Learner CATE, Heterogeneity
+├── 03_optimization.ipynb            # LGD, Policy Optimization, Sensitivity
 ├── data/
-│ ├── lendingclub_with_cate.csv
-│ ├── lendingclub_final_optimization.csv
-│ ├── dashboard_data/
-│ ├── lgd_by_grade.csv
-│ ├── model_features.csv
-│ └── xgb_default_model.json
+│   ├── lendingclub_with_cate.csv
+│   ├── lendingclub_final_optimization.csv
+│   ├── dashboard_data/
+│   ├── lgd_by_grade.csv
+│   ├── model_features.csv
+│   └── xgb_default_model.json
 └── app.py
-
-## 6. Chạy lại
+```
+## 6. Reproducing
 
 ```bash
 pip install pandas numpy lifelines xgboost scikit-learn matplotlib streamlit
 ```
 
-Data thô (392.6MB) tải từ [Kaggle](https://www.kaggle.com/datasets/wordsforthewise/lending-club), không đính kèm trong repo do giới hạn dung lượng GitHub.
+Raw data (392.6MB) can be downloaded from [Kaggle](https://www.kaggle.com/datasets/wordsforthewise/lending-club); it is not included in this repo due to GitHub's file size limits.
 
-## 7. Hạn chế
+## 7. Limitations
 
-- Model Cox và XGBoost train trên mẫu 200K–300K (không phải full 2.25M) vì giới hạn RAM local — kết quả ổn định nhưng nên lưu ý khi diễn giải
-- Treatment không randomized — dù đã propensity-adjust, vẫn có rủi ro confounding chưa quan sát (VD: lý do cụ thể khoản vay bị gắn cờ verification không có trong dữ liệu)
-- Concordance Cox Fully Paid chỉ 0.5942 — model yếu hơn đáng kể so với model Charged Off (0.6823), nên diễn giải hazard ratio của outcome này thận trọng hơn
-- Precision model XGBoost chỉ 32% — không phù hợp để tự động hóa quyết định từ chối khoản vay
-- Chi phí xác minh $20/khoản là giả định, chưa xác nhận với số liệu vận hành thật của LendingClub
+- Cox and XGBoost models were trained on a 200K–300K sample (not the full 2.25M) due to local RAM constraints — results are stable, but this should be kept in mind when interpreting them
+- Treatment is not randomized — despite propensity adjustment, there remains a risk of unobserved confounding (e.g., the specific reasons a loan gets flagged for verification are not present in the data)
+- Cox concordance for the Fully Paid model is only 0.5942 — notably weaker than the Charged Off model (0.6823), so hazard ratios for this outcome should be interpreted more cautiously
+- XGBoost precision is only 32% — not suitable for fully automating loan-rejection decisions
+- The $20/loan verification cost is an assumption, not confirmed against LendingClub's actual operational figures
 
